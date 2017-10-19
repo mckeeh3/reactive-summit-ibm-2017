@@ -14,7 +14,6 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-import scala.concurrent.duration._
 
 /**
   * Created by Marius Danciu on 9/21/2017.
@@ -39,7 +38,6 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     * "password": "72b73a80-9eca-423d-a5d1-33691916ae37",
     * "instance_id": "0e5fc23d-9277-496b-9949-e639a0a336f0"
     * }
-    *
     */
 
   val url = "https://ibm-watson-ml.mybluemix.net"
@@ -100,40 +98,55 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
       | ]
       |}
     """.stripMargin
-  println(predictRecord)
+  //println(predictRecord)
+
+  val predicateTemplate =
+    """{"fields": ["sum(Baby Food)","sum(Diapers)","sum(Formula)","sum(Lotion)","sum(Baby wash)","sum(Wipes)","sum(Fresh Fruits)","sum(Fresh Vegetables)","sum(Beer)","sum(Wine)","sum(Club Soda)","sum(Sports Drink)","sum(Chips)","sum(Popcorn)","sum(Oatmeal)","sum(Medicines)","sum(Canned Foods)","sum(Cigarettes)","sum(Cheese)","sum(Cleaning Products)","sum(Condiments)","sum(Frozen Foods)","sum(Kitchen Items)","sum(Meat)","sum(Office Supplies)","sum(Personal Care)","sum(Pet Supplies)","sum(Sea Food)","sum(Spices)"],"values": [[VALUES]]}"""
+  val random = scala.util.Random
 
   val wml = new WMLOps()
-  val result = for {
-  // Obtain WML Token: GET /v3/identity/token. Same token can be used until it expires and can be renewed. So
-  // you should not create a new token on every score request. See http://watson-ml-api.mybluemix.net/?url=token.json for more details.
-    token <- wml.getToken(url, user, password)
-    // predict with the scoring URL provided (HATEAOS)
-    scored <- wml.predict(token, predictRecord)
-  } yield {
-    scored
+
+  1 to 1000 foreach {
+    n => randomRequest(n, wml, randomCart(products.length))
   }
 
-  result.onComplete {
-    case Success(scored) =>
-      //println("Scored : " + scored.fields)
-      //println("Values : " + scored.fields("fields"))
-      //println("Values : " + scored.fields("values"))
-      //println("Scored cluster : " + scored.fields("values").asInstanceOf[JsArray].elements.last.asInstanceOf[JsArray].elements.last)
-      val cluster = scored.fields("values").asInstanceOf[JsArray].elements.last.asInstanceOf[JsArray].elements.last
-      val jsItems = scored.fields("values").asInstanceOf[JsArray].elements.toList.head.asInstanceOf[JsArray].elements.toList(29).asInstanceOf[JsArray].elements.toList(1)
-      val items = jsItems.asInstanceOf[JsArray].elements.map(_.convertTo[Int]).toList
-      val shoppingCart = items.map(products(_))
-      val clusterRecommended = clusters(cluster.toString().toInt)._2.distinct
-      val recommended = clusterRecommended.diff(items)
-      val recommendedProducts = recommended.filter(_ < products.length).map(products(_))
-      //println("Scored cluster : " + cluster)
-      //println("Cart items : " + items)
-      //println("Cluster recommended : " + clusterRecommended)
-      //println("Recommended filtered : " + recommended)
-      println("Shopping cart items : " + shoppingCart)
-      println("Recommended : " + recommendedProducts)
-    case Failure(e) =>
-      e.printStackTrace()
+  // Hand around until things cool down then exit the JVM
+  Thread.sleep(60 * 1000L)
+  System.exit(0)
+
+  def randomRequest(requestNumber: Int, wml: WMLOps, cart: String): Unit = {
+    val result = for {
+    // Obtain WML Token: GET /v3/identity/token. Same token can be used until it expires and can be renewed. So
+    // you should not create a new token on every score request. See http://watson-ml-api.mybluemix.net/?url=token.json for more details.
+      token <- wml.getToken(url, user, password)
+      // predict with the scoring URL provided (HATEAOS)
+      scored <- wml.predict(token, cart)
+    } yield {
+      scored
+    }
+
+    result.onComplete {
+      case Success(scored) =>
+        val cluster = scored.fields("values").asInstanceOf[JsArray].elements.last.asInstanceOf[JsArray].elements.last
+        val jsItems = scored.fields("values").asInstanceOf[JsArray].elements.toList.head.asInstanceOf[JsArray].elements.toList(29).asInstanceOf[JsArray].elements.toList(1)
+        val items = jsItems.asInstanceOf[JsArray].elements.map(_.convertTo[Int]).toList
+        val shoppingCart = items.map(products(_))
+        val clusterRecommended = clusters(cluster.toString().toInt)._2.distinct
+        val recommended = clusterRecommended.diff(items)
+        val recommendedProducts = recommended.filter(_ < products.length).map(products(_))
+
+        printf("Shopping cart %d, items %s\n", requestNumber, shoppingCart)
+        //println("Shopping cart items : " + shoppingCart)
+        printf("Shopping cart %d, recommended%s\n", requestNumber, recommendedProducts)
+        //println("Recommended : " + recommendedProducts)
+      case Failure(e) =>
+        e.printStackTrace()
+    }
+  }
+
+  def randomCart(length: Int): String = {
+    val cartItems = List.fill(30)(random.nextInt(200)).map(n => if (n < length) n else 0).mkString(", ")
+    predicateTemplate.replace("VALUES", cartItems)
   }
 }
 
