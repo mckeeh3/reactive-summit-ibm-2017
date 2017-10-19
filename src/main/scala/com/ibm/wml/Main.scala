@@ -37,10 +37,17 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     * "username": "67555e68-00e3-4859-99e2-8d2cff36d2e4",
     * "password": "72b73a80-9eca-423d-a5d1-33691916ae37",
     * "instance_id": "0e5fc23d-9277-496b-9949-e639a0a336f0"
+    *
+    * To increase the number of concurrent HTTP connections use the following VM argument. Set the number to the max
+    * number of HTTP connections. Default is 32.
+    * 
+    * -Dakka.http.host-connection-pool.max-open-requests=1024
     * }
     */
 
   val url = "https://ibm-watson-ml.mybluemix.net"
+  // This URL is obtained from the WML deployment I created in DSX UI.
+  val scoringUrl = "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/0aa7449a-7f39-4746-a8a8-79b9a42642e9/deployments/72dcefb9-1dce-41ae-9286-1c0d3da9c34b/online"
 
   // Pixie app using Polong Lin's WatsonML credentials
   val user = "2feca66a-f443-43fc-87ef-712ae93922fc"
@@ -106,7 +113,7 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
 
   val wml = new WMLOps()
 
-  1 to 1000 foreach {
+  1 to 100 foreach {
     n => randomRequest(n, wml, randomCart(products.length))
   }
 
@@ -120,7 +127,7 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     // you should not create a new token on every score request. See http://watson-ml-api.mybluemix.net/?url=token.json for more details.
       token <- wml.getToken(url, user, password)
       // predict with the scoring URL provided (HATEAOS)
-      scored <- wml.predict(token, cart)
+      scored <- wml.predict(token, cart, scoringUrl)
     } yield {
       scored
     }
@@ -151,7 +158,6 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
 }
 
 class WMLOps(implicit sys: ActorSystem, mat: ActorMaterializer) {
-
   def getToken(url: String, user: String, password: String): Future[String] = {
     val authorization = Authorization(BasicHttpCredentials(user, password))
 
@@ -166,9 +172,7 @@ class WMLOps(implicit sys: ActorSystem, mat: ActorMaterializer) {
     }
   }
 
-  def predict(token: String, data: String): Future[JsObject] = {
-    // This URL is obtained from the WML deployment I created in DSX UI.
-    val scoringUrl = "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/0aa7449a-7f39-4746-a8a8-79b9a42642e9/deployments/72dcefb9-1dce-41ae-9286-1c0d3da9c34b/online"
+  def predict(token: String, data: String, scoringUrl: String): Future[JsObject] = {
     for {
       body <- Marshal(data.getBytes("utf-8")).to[RequestEntity]
       reps <- Http().singleRequest(HttpRequest(
