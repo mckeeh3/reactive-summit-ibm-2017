@@ -1,12 +1,9 @@
 package com.ibm.wml
 
-import java.io.{FileNotFoundException, InputStream}
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 
 import scala.io.Source
-//import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
@@ -17,14 +14,16 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 /**
   * Created by Marius Danciu on 9/21/2017.
   */
 object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
   val filename = "ibm_df_customer_products_cluster.csv"
-  val readmeText = Source.fromResource(filename).getLines.map(_.split(",").map(_.toInt)).toList
-  println("Clusters : " + readmeText)
+  val clusters = Source.fromResource(filename).getLines.toList.map(_.split(",")).map(_.map(_.toInt)).map(r => (r.head, r.tail.toList))
+  //  println("Clusters : " + clusters)
+  //  println("Cluster 99 : " + clusters(99))
 
   println("Score with WML ...")
 
@@ -44,13 +43,16 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     */
 
   val url = "https://ibm-watson-ml.mybluemix.net"
-//  val user = "67555e68-00e3-4859-99e2-8d2cff36d2e4"
-//  val password = "72b73a80-9eca-423d-a5d1-33691916ae37"
 
   // Pixie app using Polong Lin's WatsonML credentials
   val user = "2feca66a-f443-43fc-87ef-712ae93922fc"
   val password = "163637ed-8a0e-4c0d-b95a-e1cefb5bcf3d"
   val instanceId = "648d4fc3-8a42-4f23-825b-714e650ca11c"
+
+  val products = List("Baby Food", "Diapers", "Formula", "Lotion", "Baby wash", "Wipes", "Fresh Fruits",
+    "Fresh Vegetables", "Beer", "Wine", "Club Soda", "Sports Drink", "Chips", "Popcorn", "Oatmeal", "Medicines",
+    "Canned Foods", "Cigarettes", "Cheese", "Cleaning Products", "Condiments", "Frozen Foods", "Kitchen Items",
+    "Meat", "Office Supplies", "Personal Care", "Pet Supplies", "Sea Food", "Spices")
 
   implicit val system = ActorSystem("wml")
   implicit val materializer = ActorMaterializer()
@@ -106,19 +108,32 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
   // you should not create a new token on every score request. See http://watson-ml-api.mybluemix.net/?url=token.json for more details.
     token <- wml.getToken(url, user, password)
     // predict with the scoring URL provided (HATEAOS)
-    scorred <- wml.predict(token, predictRecord)
+    scored <- wml.predict(token, predictRecord)
   } yield {
-    scorred
+    scored
   }
 
   result.onComplete {
-    case Success(scored) => {
-      println("Scored : " + scored.fields)
-      for ((k, v) <- scored.fields) printf("Key %s, value %s\n", k, v)
-    }
-    case Failure(e) => {
+    case Success(scored) =>
+      //println("Scored : " + scored.fields)
+      //println("Values : " + scored.fields("fields"))
+      //println("Values : " + scored.fields("values"))
+      //println("Scored cluster : " + scored.fields("values").asInstanceOf[JsArray].elements.last.asInstanceOf[JsArray].elements.last)
+      val cluster = scored.fields("values").asInstanceOf[JsArray].elements.last.asInstanceOf[JsArray].elements.last
+      val jsItems = scored.fields("values").asInstanceOf[JsArray].elements.toList.head.asInstanceOf[JsArray].elements.toList(29).asInstanceOf[JsArray].elements.toList(1)
+      val items = jsItems.asInstanceOf[JsArray].elements.map(_.convertTo[Int]).toList
+      val shoppingCart = items.map(products(_))
+      val clusterRecommended = clusters(cluster.toString().toInt)._2.distinct
+      val recommended = clusterRecommended.diff(items)
+      val recommendedProducts = recommended.filter(_ < products.length).map(products(_))
+      //println("Scored cluster : " + cluster)
+      //println("Cart items : " + items)
+      //println("Cluster recommended : " + clusterRecommended)
+      //println("Recommended filtered : " + recommended)
+      println("Shopping cart items : " + shoppingCart)
+      println("Recommended : " + recommendedProducts)
+    case Failure(e) =>
       e.printStackTrace()
-    }
   }
 }
 
@@ -140,9 +155,7 @@ class WMLOps(implicit sys: ActorSystem, mat: ActorMaterializer) {
 
   def predict(token: String, data: String): Future[JsObject] = {
     // This URL is obtained from the WML deployment I created in DSX UI.
-    //val scoringUrl = "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/0e5fc23d-9277-496b-9949-e639a0a336f0/published_models/3645131f-52c7-4223-81d4-12150c3a1013/deployments/c7467f3e-5cab-476b-bbf7-be1f06f13d2b/online"
-    //var scoringUrl =  "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/763fe896-0102-490a-a824-b3edf2490044/deployments/2451810e-d238-42d9-aa31-ac10ce2f5cca/online"
-    var scoringUrl =  "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/0aa7449a-7f39-4746-a8a8-79b9a42642e9/deployments/72dcefb9-1dce-41ae-9286-1c0d3da9c34b/online"
+    val scoringUrl = "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/0aa7449a-7f39-4746-a8a8-79b9a42642e9/deployments/72dcefb9-1dce-41ae-9286-1c0d3da9c34b/online"
     for {
       body <- Marshal(data.getBytes("utf-8")).to[RequestEntity]
       reps <- Http().singleRequest(HttpRequest(
