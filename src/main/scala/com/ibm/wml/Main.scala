@@ -40,7 +40,7 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     *
     * To increase the number of concurrent HTTP connections use the following VM argument. Set the number to the max
     * number of HTTP connections. Default is 32.
-    * 
+    *
     * -Dakka.http.host-connection-pool.max-open-requests=1024
     * }
     */
@@ -143,9 +143,7 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
         val recommendedProducts = recommended.filter(_ < products.length).map(products(_))
 
         printf("Shopping cart %d, items %s\n", requestNumber, shoppingCart)
-        //println("Shopping cart items : " + shoppingCart)
-        printf("Shopping cart %d, recommended%s\n", requestNumber, recommendedProducts)
-        //println("Recommended : " + recommendedProducts)
+        printf("Shopping cart %d, recommended %s\n", requestNumber, recommendedProducts)
       case Failure(e) =>
         e.printStackTrace()
     }
