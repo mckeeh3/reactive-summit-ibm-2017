@@ -1,8 +1,12 @@
 package com.ibm.wml
 
+import java.io.{FileNotFoundException, InputStream}
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+
+import scala.io.Source
+//import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
@@ -17,7 +21,11 @@ import scala.util.{Failure, Success}
 /**
   * Created by Marius Danciu on 9/21/2017.
   */
-object Main extends App with DefaultJsonProtocol with SprayJsonSupport {
+object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
+  val filename = "ibm_df_customer_products_cluster.csv"
+  val readmeText = Source.fromResource(filename).getLines.map(_.split(",").map(_.toInt)).toList
+  println("Clusters : " + readmeText)
+
   println("Score with WML ...")
 
   /**
