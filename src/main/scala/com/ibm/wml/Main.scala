@@ -34,9 +34,9 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
     * {
     * "url": "https://ibm-watson-ml.mybluemix.net",
     * "access_key": "xbUq5l1+Iow6TOlTFBu3sYntAKHgUTV23RU96ISe5nuX9zfF1hc7M3L0h5+fnTnWHxGxQ3pIogjgEOjN0TGDTcL0h32gVzPkwMbmHXNpi+FQYUqQmv73SQJrb1WXWeZv",
-    * "username": "67555e68-00e3-4859-99e2-8d2cff36d2e4",
-    * "password": "72b73a80-9eca-423d-a5d1-33691916ae37",
-    * "instance_id": "0e5fc23d-9277-496b-9949-e639a0a336f0"
+    * "username": "your-user",
+    * "password": "your-password",
+    * "instance_id": "your-instance-id"
     *
     * To increase the number of concurrent HTTP connections use the following VM argument. Set the number to the max
     * number of HTTP connections. Default is 32.
@@ -50,9 +50,9 @@ object Main extends App with DefaultJsonProtocol { //with SprayJsonSupport {
   val scoringUrl = "https://ibm-watson-ml.mybluemix.net/v3/wml_instances/648d4fc3-8a42-4f23-825b-714e650ca11c/published_models/0aa7449a-7f39-4746-a8a8-79b9a42642e9/deployments/72dcefb9-1dce-41ae-9286-1c0d3da9c34b/online"
 
   // Pixie app using Polong Lin's WatsonML credentials
-  val user = "2feca66a-f443-43fc-87ef-712ae93922fc"
-  val password = "163637ed-8a0e-4c0d-b95a-e1cefb5bcf3d"
-  val instanceId = "648d4fc3-8a42-4f23-825b-714e650ca11c"
+  val user = "your-user"
+  val password = "your-password"
+  val instanceId = "your-instance-id"
 
   val products = List("Baby Food", "Diapers", "Formula", "Lotion", "Baby wash", "Wipes", "Fresh Fruits",
     "Fresh Vegetables", "Beer", "Wine", "Club Soda", "Sports Drink", "Chips", "Popcorn", "Oatmeal", "Medicines",
